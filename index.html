@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://unpkg.com/kaplay@3001/dist/kaplay.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        kaplay();
+        loadSprite("head", "assets/head.png");
+        loadMusic("music", "assets/music.mp3")
+
+        setBackground([0, 0, 0])
+
+        scene("gameover", score => {
+            // Display "Game Over" text
+            const gameOverLabel = add([
+                text("Game Over", {
+                    size: 48,
+                    font: "sinko",
+                }),
+                pos(width() / 2, height() / 3),
+                anchor("center"),
+                layer("ui"),
+            ]);
+
+            // Display the score
+            const scoreLabel = add([
+                text(`Score: ${score}`, {
+                    size: 32,
+                    font: "sinko",
+                }),
+                pos(width() / 2, height() / 2),
+                anchor("center"),
+                layer("ui"),
+            ]);
+
+            // Add a replay button
+            const replayButton = add([
+                text("Replay", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                pos(width() / 2, height() * 2 / 3),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "replay"
+            ]);
+            onClick("replay", () => go("game"))
+
+            add([
+                text("Presented by the $KRAW rugpull.\nDo not buy on https://wen.markets",
+                    {
+                        size: 16,
+                        font: 'sinko',
+                        align: 'center'
+                    }
+                ),
+                pos(width() * 0.5, height() * 15 / 16),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "credits"
+            ])
+            onClick("credits", () => {
+                window.open('https://wen.markets/b/0x269C4d50A83c3b181e883163C8AE5031182c8162')
+            })
+        });
+
+        // Set up the game scene
+        scene("game", () => {
+            let score = 0;
+            let birdPosX = 20; // Initial bird horizontal position
+            let birdPosY = 300; // Initial bird vertical position
+            let birdSpeed = 1; // Horizontal bird speed
+            const candleWidth = 20;
+            let latestCandle;
+
+            const addCandle = (price) => {
+                const candleHeight = Math.abs(price)
+                const sell = price < 0
+
+                let x = width() / 2;
+                let y = height() / 2
+                if (latestCandle) {
+                    const lastWasSell = latestCandle.price < 0
+                    x = latestCandle.pos.x + candleWidth;
+                    if (lastWasSell && sell) {
+                        y = latestCandle.pos.y + latestCandle.height;
+                    } else if (!lastWasSell && sell) {
+                        y = latestCandle.pos.y
+                    } else if (lastWasSell && !sell) {
+                        y = latestCandle.pos.y + latestCandle.height - candleHeight
+                    } else {
+                        y = latestCandle.pos.y - candleHeight;
+                    }
+
+                }
+                latestCandle = add([
+                    rect(candleWidth, candleHeight),
+                    pos(x, y),
+                    color(
+                        sell ? 255 : 0,
+                        sell ? 0 : 255,
+                        0),
+                    area(),
+                    layer("background"),
+                    "candle"
+                ]);
+                latestCandle.price = price
+                return latestCandle;
+            };
+            latestCandle = addCandle(50)
+
+            const bird = add([
+                sprite("head", {
+                    height: 64,
+                    flipX: true,
+                }),
+                pos(birdPosX, birdPosY),
+                area(),
+                "bird",
+            ]);
+
+            let birdDir = -1
+            loop(0.25, () => {
+                if (Math.random() < 0.5) {
+                    birdDir = -1;
+                } else {
+                    birdDir = 1;
+                }
+            })
+
+            onUpdate(() => {
+                bird.pos.x += birdSpeed;
+                bird.pos.y += birdDir * birdSpeed;
+
+                if (bird.pos.x > width() - 64) {
+                    go("gameover", score)
+                }
+
+                // Destroy candles that move off the left side of the screen
+                get("candle").forEach((candle) => {
+                    if (candle.pos.x + candle.width < 0) {
+                        candle.destroy();
+                    }
+                });
+            });
+
+            loop(1, () => {
+                birdSpeed += 0.01
+            })
+
+            // Display the score
+            const scoreLabel = add([
+                text(score.toString(), {
+                    size: 32,
+                }),
+                pos(12, 12),
+                layer("ui"),
+                {
+                    value: score
+                }
+            ]);
+
+            // Increase score
+            onUpdate(() => {
+                scoreLabel.text = score.toString();
+            })
+
+            // Handle BUY button (adds a green candle)
+            const placeBuy = () => {
+                const price = 1 + Math.random() * 100
+                get("candle").forEach((candle) => {
+                    candle.pos.x -= candle.width
+                    candle.pos.y += price
+                });
+                get("bird").forEach(b => {
+                    b.pos.y += price
+                    b.pos.x -= candleWidth
+                })
+                addCandle(price);
+            }
+            onKeyPress("up", placeBuy);
+
+            const placeSell = () => {
+                const price = -1 - Math.random() * 100
+                get("candle").forEach((candle) => {
+                    candle.pos.x -= candle.width
+                    candle.pos.y += price
+                });
+                get("bird").forEach(b => {
+                    b.pos.y += price
+                    b.pos.x -= candleWidth
+                })
+                const candle = addCandle(price);
+
+                let scored = false
+                candle.onCollide("bird", () => {
+                    if (!scored && candle == latestCandle) {
+                        score += Math.abs(price)
+                        score = Math.round(score * 100) / 100
+                    }
+                    scored = true
+                })
+            }
+
+            // Handle SELL button (adds a red candle)
+            onKeyPress("down", placeSell);
+
+            // Add the "SELL" button
+            const sellButton = add([
+                text("SELL", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                pos(width() * 0.75, height() * 2 / 3),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "sellButton"
+            ]);
+
+            // Add the "BUY" button
+            const buyButton = add([
+                text("BUY", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                pos(width() * 0.25, height() * 2 / 3),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "buyButton"
+            ]);
+            onClick("buyButton", placeBuy)
+            onClick("sellButton", placeSell)
+
+            const howTo = add([
+                text("Hit the raven with a red candle to score!\nDon't let it escape!", {
+                    size: 16,
+                    font: 'sinko',
+                    align: 'center'
+                }),
+                pos(width() * 0.5, height() * 1 / 8),
+                anchor("center"),
+                area(),
+                layer("ui")
+            ])
+
+            const controls = add([
+                text("Use arrow keys (up, down) for faster play!", {
+                    size: 16,
+                    font: 'sinko',
+                    align: 'center'
+                }),
+                pos(width() * 0.5, height() * 7 / 8),
+                anchor("center"),
+                area(),
+                layer("ui")
+            ])
+
+            wait(5, () => {
+                destroy(howTo)
+                destroy(controls)
+            })
+
+            add([
+                text("Presented by the $KRAW rugpull.\nDo not buy on https://wen.markets",
+                    {
+                        size: 16,
+                        font: 'sinko',
+                        align: 'center'
+                    }
+                ),
+                pos(width() * 0.5, height() * 15 / 16),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "credits"
+            ])
+            onClick("credits", () => {
+                window.open('https://wen.markets/b/0x269C4d50A83c3b181e883163C8AE5031182c8162')
+            })
+
+
+        });
+
+
+        scene("home", () => {
+            // Display "Game Over" text
+            const gameOverLabel = add([
+                text("Rug the Raven", {
+                    size: 48,
+                    font: "sinko",
+                }),
+                pos(width() / 2, height() / 3),
+                anchor("center"),
+                layer("ui"),
+            ]);
+
+            // Display the score
+            const scoreLabel = add([
+                text("Sell just when the candle\nis on that stinky bird.\nDon't let it escape!", {
+                    size: 20,
+                    font: "sinko",
+                    align: 'center'
+                }),
+                pos(width() / 2, height() / 2),
+                anchor("center"),
+                layer("ui"),
+            ]);
+
+            // Add a replay button
+            const replayButton = add([
+                text("Play", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                pos(width() / 2, height() * 2 / 3),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "play"
+            ]);
+            onClick("play", () => {
+
+                play("music");
+                go("game")
+            })
+
+            add([
+                text("Copyright (c) 2024\nPresented by the $KRAW rugpull.\nDo not buy on https://wen.markets",
+                    {
+                        size: 16,
+                        font: 'sinko',
+                        align: 'center'
+                    }
+                ),
+                pos(width() * 0.5, height() * 15 / 16),
+                anchor("center"),
+                area(),
+                layer("ui"),
+                "credits"
+            ])
+            onClick("credits", () => {
+                window.open('https://wen.markets/b/0x269C4d50A83c3b181e883163C8AE5031182c8162')
+            })
+        })
+
+        go("home");
+    </script>
+</body>
+
+</html>
