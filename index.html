@@ -15,6 +15,7 @@
 <body>
     <script>
         kaplay();
+        layers(["background", "game", "ui"], "game")
         loadSprite("head", "assets/head.png");
         loadMusic("music", "assets/music.mp3")
 
@@ -45,16 +46,22 @@
 
             // Add a replay button
             const replayButton = add([
-                text("Replay", {
-                    size: 24,
-                    font: "sinko",
-                }),
+                rect(240, 80, { radius: 8 }),
                 pos(width() / 2, height() * 2 / 3),
-                anchor("center"),
                 area(),
+                scale(1),
+                anchor("center"),
+                outline(4),
                 layer("ui"),
                 "replay"
             ]);
+            replayButton.add([
+                text("REPLAY", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                anchor("center"),
+                color(0, 0, 0)])
             onClick("replay", () => go("game"))
 
             add([
@@ -128,6 +135,7 @@
                 }),
                 pos(birdPosX, birdPosY),
                 area(),
+                layer("game"),
                 "bird",
             ]);
 
@@ -217,31 +225,47 @@
             // Handle SELL button (adds a red candle)
             onKeyPress("down", placeSell);
 
-            // Add the "SELL" button
             const sellButton = add([
+                rect(240, 80, { radius: 8 }),
+                pos(width() * 0.75, height() * 2 / 3),
+                area(),
+                scale(1),
+                anchor("center"),
+                color(255,0,0),
+                outline(4),
+                layer("ui"),
+                "sellButton"
+            ]);
+            sellButton.add([
                 text("SELL", {
                     size: 24,
                     font: "sinko",
                 }),
-                pos(width() * 0.75, height() * 2 / 3),
                 anchor("center"),
-                area(),
-                layer("ui"),
-                "sellButton"
-            ]);
+                color(0, 0, 0)])
 
             // Add the "BUY" button
             const buyButton = add([
+                rect(240, 80, { radius: 8 }),
+                pos(width() * 0.25, height() * 2 / 3),
+                area(),
+                scale(1),
+                anchor("center"),
+                color(0,255,0),
+                outline(4),
+                layer("ui"),
+                "buyButton"
+            ]);
+            buyButton.add([
                 text("BUY", {
                     size: 24,
                     font: "sinko",
                 }),
-                pos(width() * 0.25, height() * 2 / 3),
                 anchor("center"),
-                area(),
-                layer("ui"),
-                "buyButton"
-            ]);
+                color(0, 0, 0)])
+
+
+
             onClick("buyButton", placeBuy)
             onClick("sellButton", placeSell)
 
@@ -321,17 +345,24 @@
             ]);
 
             // Add a replay button
-            const replayButton = add([
-                text("Play", {
-                    size: 24,
-                    font: "sinko",
-                }),
+            const playButton = add([
+                rect(240, 80, { radius: 8 }),
                 pos(width() / 2, height() * 2 / 3),
-                anchor("center"),
                 area(),
+                scale(1),
+                anchor("center"),
+                outline(4),
                 layer("ui"),
                 "play"
             ]);
+            playButton.add([
+                text("PLAY", {
+                    size: 24,
+                    font: "sinko",
+                }),
+                anchor("center"),
+                color(0, 0, 0)])
+
             onClick("play", () => {
 
                 play("music");
